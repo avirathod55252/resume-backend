@@ -3,20 +3,28 @@ import cors from "cors";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// ✅ Enable CORS for frontend on port 3000
+// ✅ Environment Variables
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const PORT = process.env.PORT || 5000;
+
+// ✅ Enable CORS for frontend
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: FRONTEND_URL,
     methods: ["GET", "POST", "DELETE", "PUT"],
   })
 );
 
 // ✅ Ensure upload folder exists
-const uploadPath = path.resolve("backend/uploads");
+const uploadPath = path.resolve(process.env.UPLOAD_DIR || "uploads");
 if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
 
 // ✅ Multer storage config
@@ -39,7 +47,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const file = req.file;
   res.json({
     message: "File uploaded successfully",
-    fileUrl: `http://localhost:5000/uploads/${file.filename}`,
+    fileUrl: `${BACKEND_URL}/uploads/${file.filename}`,
   });
 });
 
@@ -48,15 +56,12 @@ app.put("/update/:oldFilename", upload.single("file"), (req, res) => {
   const decodedName = decodeURIComponent(req.params.oldFilename);
   const oldFilePath = path.join(uploadPath, decodedName);
 
-  // Delete old file if exists
-  if (fs.existsSync(oldFilePath)) {
-    fs.unlinkSync(oldFilePath);
-  }
+  if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
 
   const file = req.file;
   res.json({
     message: "File replaced successfully",
-    fileUrl: `http://localhost:5000/uploads/${file.filename}`,
+    fileUrl: `${BACKEND_URL}/uploads/${file.filename}`,
   });
 });
 
@@ -67,7 +72,7 @@ app.use("/uploads", express.static(uploadPath));
 app.get("/files", (req, res) => {
   const files = fs.readdirSync(uploadPath).map((name) => ({
     name,
-    url: `http://localhost:5000/uploads/${name}`,
+    url: `${BACKEND_URL}/uploads/${name}`,
   }));
   res.json(files);
 });
@@ -86,7 +91,4 @@ app.delete("/delete/:filename", (req, res) => {
 });
 
 // ✅ Start server
-const PORT = 5000;
-app.listen(PORT, () =>
-  console.log(`✅ Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => console.log(`✅ Server running on ${BACKEND_URL}`));
